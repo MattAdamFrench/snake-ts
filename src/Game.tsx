@@ -13,7 +13,11 @@ type Position = {
 }
 
 enum Direction {
-    Up, Down, Left, Right
+    Up = "UP",
+    Down = "DOWN",
+    Left = "LEFT",
+    Right = "RIGHT",
+    None = "NONE"
 }
 
 enum TileType {
@@ -27,6 +31,7 @@ class SnakeGame {
     private snake: Position[]
     private foods: Position[]
     private _playing: boolean
+    private lastMoveDirection: Direction = Direction.Left;
 
 
     private boardWidth: number;
@@ -117,7 +122,7 @@ class SnakeGame {
     }
 
     gameTick(action: Direction) {
-        console.log("Game tick");
+        console.log("Game tick", action);
 
         // (0, 0) is the top left corner
         // (0, 1) is the tile below (0, 0)
@@ -141,10 +146,11 @@ class SnakeGame {
 
 
         // Check we're not moving backwards (e.g. if the neck is in the direction we are moving)
-        if (this.isMovingBackwards(action)) {
-            this.endGame(false);  // TODO: Make this not end the game
-            return;
+        if (this.isMovingBackwards(action) || action === Direction.None) {
+            action = this.lastMoveDirection;
         }
+
+        this.lastMoveDirection = action;
 
         // Figure out the proposed new head position, e.g. if we are moving up, the new head position is one above the current head position
         let proposedHeadPos: Position;
@@ -161,6 +167,8 @@ class SnakeGame {
             case Direction.Right:
                 proposedHeadPos = { x: snakeHeadPos.x + 1, y: snakeHeadPos.y };
                 break;
+            default:
+                throw new Error("Invalid direction");
         }
 
         // Check if we moved off the board (e.g. if the proposed head position is outside the board)
@@ -241,6 +249,34 @@ class SnakeGame {
 
 }
 
+// https://usehooks.com/useKeyPress/
+function useKeyPress(targetKey: string) {
+    // State for keeping track of whether key is pressed
+    const [keyPressed, setKeyPressed] = useState<boolean>(false);
+    // If pressed key is our target key then set to true
+    function downHandler({ key }: { key: string }) {
+        if (key === targetKey) {
+            setKeyPressed(true);
+        }
+    }
+    // If released key is our target key then set to false
+    const upHandler = ({ key }: { key: string }) => {
+        if (key === targetKey) {
+            setKeyPressed(false);
+        }
+    };
+    // Add event listeners
+    useEffect(() => {
+        window.addEventListener("keydown", downHandler);
+        window.addEventListener("keyup", upHandler);
+        // Remove event listeners on cleanup
+        return () => {
+            window.removeEventListener("keydown", downHandler);
+            window.removeEventListener("keyup", upHandler);
+        };
+    }, []); // Empty array ensures that effect is only run on mount and unmount
+    return keyPressed;
+}
 
 export default function Game(props: Props) {
 
@@ -251,18 +287,38 @@ export default function Game(props: Props) {
     const [game, setGame] = useState<SnakeGame>(createGame());
     const [lastTick, setLastTick] = useState<Date>(new Date());
 
+    const upPress = useKeyPress("w");
+    const downPress = useKeyPress("s");
+    const leftPress = useKeyPress("a");
+    const rightPress = useKeyPress("d");
+
 
     // Run game tick every second
     useEffect(() => {
-        console.log("useEffect");
         const interval = setInterval(() => {
             if (game.playing) {
-                game.gameTick(Direction.Up);
-                setLastTick(new Date());
+
+                let direction: Direction | null = null;
+                if (upPress) {
+                    direction = Direction.Up;
+                } else if (downPress) {
+                    direction = Direction.Down;
+                } else if (leftPress) {
+                    direction = Direction.Left;
+                } else if (rightPress) {
+                    direction = Direction.Right;
+                }
+                else {
+                    direction = Direction.None;
+                }
+    
+                game.gameTick(direction);
+                setLastTick(new Date());        
             }
-        }, 1000);
+        }, 500);
         return () => clearInterval(interval);
-    }, [game, game.playing]);
+    }, [game, game.playing, upPress, downPress, leftPress, rightPress]);
+
 
     return (
         <div>
@@ -271,9 +327,9 @@ export default function Game(props: Props) {
             <button onClick={() => game.playing = false}>Stop</button>
             <button onClick={() => setGame(createGame())}>Reset</button>
 
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "row" }}>
                 {game.board.map((row, i) => (
-                    <div key={i} style={{ display: "flex", flexDirection: "row" }}>
+                    <div key={i} style={{ display: "flex", flexDirection: "column" }}>
                         {row.map((tile, j) => {
                             let color = "white";
                             switch (tile) {
