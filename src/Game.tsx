@@ -59,7 +59,7 @@ export default function Game(props: Props) {
                 {gameState.board.map((row, i) => (
                     <div key={i} style={{ display: "flex", flexDirection: "row" }}>
                         {row.map((tile, j) => (
-                            <div key={j} style={{ border: 2, width: 20, height: 20, backgroundColor: tile === TileType.Empty ? "white" : tile === TileType.Snake ? "green" : "red" }}></div>
+                            <div key={j} style={{ border: 1, borderColor: "black", borderStyle: "solid", width: 20, height: 20, backgroundColor: tile === TileType.Empty ? "white" : tile === TileType.Snake ? "green" : "red" }}></div>
                         ))}
                     </div>
                 ))}
